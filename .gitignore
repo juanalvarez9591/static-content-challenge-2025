@@ -1,0 +1,9 @@
+node_modules
+data/
+test-results/
+playwright-report/
+.env
+tests/e2e/.tmp/
+dist/
+.claude/
+SPEC.md

@@ -1,12 +1,45 @@
 {
   "name": "static-content-challenge-2025",
   "version": "1.0.0",
-  "description": "**NB: Please do not fork this repository, to avoid your solution being visible from this repository's GitHub page. Please clone this repository and submit your solution as a separate repository.**",
-  "main": "index.js",
+  "description": "Static content app: serves markdown folders as web pages.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "sh -c 'vite build --watch & LOG_LEVEL=debug node --watch src/server.js'",
+    "test": "vitest run",
+    "test:e2e": "npm run build && playwright test",
+    "create-admin": "node scripts/create-admin.js",
+    "build": "vite build"
+  },
   "repository": {
     "type": "git",
     "url": "git@github.com-pensionbee:PensionBee/static-content-challenge-2025.git"
   },
   "author": "PensionBee Limited",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "marked": "^18.0.14",
+    "pino": "^10.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "pino-pretty": "^13.2.0",
+    "supertest": "^7.3.1",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }
