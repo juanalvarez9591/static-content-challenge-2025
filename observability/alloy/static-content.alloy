@@ -1,0 +1,8 @@
+loki.source.journal "static_content" {
+	matches       = "_SYSTEMD_UNIT=static-content.service"
+	relabel_rules = discovery.relabel.journal_labels.rules
+	forward_to    = [loki.write.pi.receiver]
+	labels = {
+		job = "static-content",
+	}
+}
