@@ -146,7 +146,7 @@ The deploy job builds the React client on the runner (never on the VPS), prunes 
 | `/etc/nginx/sites-enabled/static.jpalvarez.xyz` | `deploy/nginx-static.jpalvarez.xyz.conf` (certbot adds the TLS block) |
 | `/etc/sudoers.d/static-deploy` | the deploy user may only restart this one service |
 
-Content on the server lives in `/var/lib/static-content/content` (seeded once from `src/content`); edit it from `/admin` or directly on disk. Create the admin user on the server with `ADMIN_USERNAME=... ADMIN_PASSWORD=... node scripts/create-admin.js` run as the `static-content` user with the env file loaded.
+Content on the server lives in `/var/lib/static-content/content` (seeded once from `src/content`); edit it from `/admin` or directly on disk. The server admin user (`admin`) was created at setup; its generated password is in `/etc/static-content/admin.credentials` (root only), change it after the first sign-in. To create or reset a user run `ADMIN_USERNAME=... ADMIN_PASSWORD=... node scripts/create-admin.js` run as the `static-content` user with the env file loaded.
 
 ## Observability
 
