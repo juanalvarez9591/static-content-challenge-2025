@@ -7,3 +7,10 @@ tests/e2e/.tmp/
 dist/
 .claude/
 SPEC.md
+
+src/content/*
+!src/content/index.md
+!src/content/about-page/
+!src/content/blog/
+!src/content/jobs/
+!src/content/valves/
