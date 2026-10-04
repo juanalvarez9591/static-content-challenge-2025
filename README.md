@@ -115,4 +115,44 @@ Unit tests (pure functions) and functional tests (a controller with a fake repos
 
 - New outcome (e.g. redirects): add a variant in `serve-page/deriveRouteOutcome.js`, a row in `STATUS_BY_OUTCOME` and a `case` in `makeLoadPage`; the `default: throw` branch and the tests flag any place you forgot.
 - New admin capability: add a new operation folder with its Deriver, controller and tests, a route in `src/admin/adminApi.js` (it is behind the session and CSRF middleware automatically), and a screen under `src/client/admin/`.
-- Not done yet: deployment (Docker, docker-compose, nginx, CD job). The CI workflow only runs the tests.
+
+## Deployment
+
+Live at **https://static.jpalvarez.xyz**. The app runs as a systemd service on a small shared VPS behind nginx (TLS from Let's Encrypt). There is no Docker on the box: the VPS has 512 MB of RAM, so the pipeline ships a tarball and the service is capped at 200 MB (`MemoryMax`).
+
+**Branches and pipeline**
+
+| Event | What runs |
+|---|---|
+| Pull request to `main` | `ci.yml`: unit, functional, integration and e2e tests (required check `test`) |
+| Push / merge to `main` | `deploy.yml`: the same tests, then build, upload, restart, health check |
+| Manual (`workflow_dispatch`) | `deploy.yml` on the selected branch (only `main` may use the `production` environment) |
+
+Work on a feature branch, open a PR, merge when `test` is green; merging deploys. `main` is protected: PRs are required, force pushes are blocked.
+
+The deploy job builds the React client on the runner (never on the VPS), prunes dev dependencies, uploads `release.tgz` over SSH to `/opt/static-content/releases/<sha>`, swaps the `current` symlink atomically, restarts `static-content.service` and waits for `/healthz`. If the new release is unhealthy it switches back to the previous one and fails the job. The last 5 releases are kept; to roll back by hand re-run the workflow on an older commit or `ln -sfn` an older release and restart the service.
+
+**GitHub configuration** (`production` environment): secrets `DEPLOY_HOST`, `DEPLOY_USER` (`static-deploy`), `DEPLOY_SSH_KEY` (dedicated key, can only log in as that user), `DEPLOY_KNOWN_HOSTS` (pinned host key); variable `APP_URL`.
+
+**Server layout** (files in `deploy/`):
+
+| Path on the VPS | Purpose |
+|---|---|
+| `/opt/static-content/node` | Node 24 (isolated from the system) |
+| `/opt/static-content/releases/<sha>`, `current` | deployed releases |
+| `/etc/static-content/env` | runtime config (`deploy/static-content.env.example`) |
+| `/var/lib/static-content/{content,uploads,app.sqlite}` | marketing content, uploaded images, admin database. **Not touched by deploys**; back these up |
+| `/etc/systemd/system/static-content.service` | `deploy/static-content.service` |
+| `/etc/nginx/sites-enabled/static.jpalvarez.xyz` | `deploy/nginx-static.jpalvarez.xyz.conf` (certbot adds the TLS block) |
+| `/etc/sudoers.d/static-deploy` | the deploy user may only restart this one service |
+
+Content on the server lives in `/var/lib/static-content/content` (seeded once from `src/content`); edit it from `/admin` or directly on disk. Create the admin user on the server with `ADMIN_USERNAME=... ADMIN_PASSWORD=... node scripts/create-admin.js` run as the `static-content` user with the env file loaded.
+
+## Observability
+
+The app writes one JSON wide event per request to stdout; systemd keeps it in the journal. Grafana Alloy on the VPS ships the unit's journal to Loki on a Raspberry Pi (through an existing reverse SSH tunnel), and the Pi's Grafana shows it:
+
+- `observability/alloy/static-content.alloy`: the Alloy block that tails `static-content.service` (label `job="static-content"`)
+- `observability/grafana/static-content-ops.json`: the provisioned dashboard `static-content - ops` (requests by status, latency p50/p95, 5xx, blocked traversal attempts, sign-in outcomes, admin actions, warnings and errors)
+
+Useful LogQL: `{job="static-content"} | json | outcome="INVALID_PATH"` for traversal attempts, `{job="static-content"} | json | status >= 500` for errors.
