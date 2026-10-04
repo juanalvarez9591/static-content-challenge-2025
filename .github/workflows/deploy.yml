@@ -1,0 +1,70 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build the React client
+        run: npm run build
+      - name: Keep production dependencies only
+        run: npm prune --omit=dev
+      - name: Package the release
+        run: |
+          tar -czf release.tgz \
+            --exclude='*.test.js' \
+            --exclude='src/client' \
+            --exclude='src/content' \
+            package.json node_modules dist public scripts src
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release.tgz
+          retention-days: 7
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+      - name: Upload the release
+        run: |
+          scp -i ~/.ssh/deploy_key -o BatchMode=yes release.tgz \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/static-content/releases/${{ github.sha }}.tgz"
+      - name: Activate the release, with automatic rollback
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "bash -s -- ${{ github.sha }}" < deploy/remote-deploy.sh
+      - name: Check the public health endpoint
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 3 --retry-connrefused "${{ vars.APP_URL }}/healthz"
