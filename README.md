@@ -35,3 +35,84 @@ In this MVP sprint, there are several opportunities to deliver nice-to-have tick
 - The MVP's GitHub repository should be configured for hosting on a cloud hosting service, and include a link to a live deployment
 - The repository should include documentation describing how to both use the application and how to iterate it from here
 - Overall, you should do everything you think is necessary to make this application MVP production-ready
+
+
+---
+
+# Solution
+
+Express + client-side React app that serves every folder under `src/content` that has an `index.md` as a web page at the matching URL. Design notes and decisions live in [SPEC.md](SPEC.md).
+
+## Use it
+
+```sh
+npm install
+npm run build             # bundles the React client into dist/client (needed before start)
+npm start                 # http://localhost:3000
+npm run dev               # rebuilds the client on change and restarts the server
+npm test                  # unit, functional and integration (Vitest + supertest)
+npm run test:e2e          # end to end (Playwright; first run: npx playwright install chromium)
+```
+
+- **Add a page:** create a folder under `src/content` with an `index.md` (no code change, no restart). `src/content/index.md` is the home page (`/`).
+- **Admin:** the **Admin** link in the site nav goes to `/admin/login`; after signing in you land on `/admin`, where one admin user can create, edit and delete pages. Create the user first (there is no public sign-up):
+
+  ```sh
+  ADMIN_USERNAME=me ADMIN_PASSWORD='at least 12 characters' npm run create-admin
+  ```
+
+  Page paths in the admin use lowercase letters, digits, `-` and `_`.
+- **Sitemap:** the **Sitemap** link in the nav (`/sitemap`) lists every page as a nested tree, generated from the content folders, so new folders show up on their own. `/sitemap` is reserved: it wins over a content folder with that name.
+- **Images:** in the page editor, paste an image from the clipboard (Ctrl/Cmd+V) or drop a file onto the Markdown box. It is uploaded and `![image](/uploads/<hash>.png)` is inserted at the cursor, like on GitHub. PNG, JPEG, GIF and WebP up to 5 MB (no SVG). Files are stored in `UPLOADS_DIR` (default `data/uploads`) and served at `/uploads/`; keep that folder on a persistent volume.
+- **Config (env vars):** `PORT` (3000), `LOG_LEVEL` (`debug` in dev, `info` when `NODE_ENV=production`), `CONTENT_DIR`, `DB_PATH` (`data/app.sqlite`), `UPLOADS_DIR` (`data/uploads`), `TRUST_PROXY` (hops, default 1), `NODE_ENV=production` (turns on `Secure` cookies; needs HTTPS).
+
+## How it is built
+
+Functional core, imperative shell (see SPEC.md), organised **by operation**: each operation has its own folder holding its deriver, controller and tests together; entities and their repositories have their own folders.
+
+```
+src/
+  app.js, server.js          wiring only
+  page/                      ENTITY Page: page.js (Zod parser), pathInvariants.js, pageRepository.js (files, only I/O)
+  template/                  ENTITY Template: template.js (Zod parser), templateRepository.js
+  serve-page/                OPERATION: GET a page / sitemap
+                             deriveRouteOutcome.js (Deriver), renderPage/renderShell/renderSitemap (pure), serveController.js
+  manage-pages/              OPERATION: admin create/read/update/delete
+                             validatePagePath.js, derivePageWriteOutcome.js (Deriver), managePagesController.js
+  login/                     OPERATION: sign in / out
+                             deriveLoginOutcome.js (Deriver), loginController.js
+  upload-image/              OPERATION: paste/drop an image
+                             detectImageType.js, deriveUploadOutcome.js (Deriver), uploadImageController.js, uploadsRepository.js
+  auth/                      sessions: deriveRequestAuth.js (Deriver), requireSession.js, db.js (SQLite repositories), security.js
+  admin/adminApi.js          wires the admin routes to the controllers above
+  shared/                    http/status.js, errors.js, logging/ (pino + wide events)
+  client/                    React app in the browser (Vite): public pages, login, dashboard, editor
+tests/integration/           Express + real repositories + temp dirs (supertest)
+tests/e2e/                   Playwright
+tests/rules/                 architecture rules (e.g. no bare HTTP status numbers)
+```
+
+Unit tests (pure functions) and functional tests (a controller with a fake repository) sit **next to the code** as `*.test.js`.
+
+| Building block | Where |
+|---|---|
+| Entities (parsed at the boundary with Zod) | `page/page.js`, `template/template.js` |
+| Invariants (one small named function per rule) | `page/pathInvariants.js` |
+| Derivers (pure; return a tagged union of outcomes) | `deriveRouteOutcome` (`PAGE_FOUND \| SITEMAP \| NOT_FOUND \| INVALID_PATH`), `derivePageWriteOutcome`, `deriveLoginOutcome`, `deriveUploadOutcome`, `deriveRequestAuth` |
+| Controllers (the shell: load, ask the deriver, perform the effect) | `*Controller.js`, `auth/requireSession.js`. Each has one `RESPONSE_BY_OUTCOME` / `STATUS_BY_OUTCOME` table, the only place an outcome becomes a status |
+| Repositories (the only I/O) | `page/pageRepository.js`, `template/templateRepository.js`, `upload-image/uploadsRepository.js`, `auth/db.js` |
+| Presentation (React, in the browser) | `src/client/`, `public/` |
+
+- **How a page is served:** `GET /about-page` returns `template.html` with `{{content}}` replaced by the server-rendered page HTML plus a JSON block of initial data (works without JavaScript, good for SEO). The React app then takes over `#root` and navigates client-side, fetching `GET /api/content?path=...`. `/admin/*` returns an empty shell and is entirely client-rendered, talking to `/api/admin/*`.
+- **Path safety:** the deriver rejects `..`, null bytes, backslashes and empty segments on the decoded path; the repository independently resolves the real path (symlinks included) and refuses anything outside the content root. Writes from `/admin` get the same two checks.
+- **PWA:** mobile-first CSS, `manifest.json`, and a small service worker (network first, cache fallback for visited pages, never caches `/admin` or `/api/admin`).
+- **Errors:** expected outcomes are values; unexpected failures are caught once and become a generic 500. Details go only to the log. `unhandledRejection` / `uncaughtException` log and exit so a supervisor restarts the process.
+- **Logging:** `pino` JSON to stdout, one wide event per request (`request_id` also in `X-Request-Id`). Level follows the outcome: `warn` for `INVALID_PATH` and failed logins, `error` for 5xx. No cookies, passwords or tokens are logged. The client IP is logged and may be personal data.
+- **Admin security:** argon2id passwords, server-side sessions (256-bit random id, stored hashed, rotated on login, `HttpOnly` + `SameSite=Strict`), CSRF token (`X-CSRF-Token` header) on every non-GET request, generic login errors, account lock after 5 failures (also for unknown usernames), per-IP rate limits (429), `helmet` with a strict CSP. Deny by default: everything under `/api/admin` except login needs a session. Uploaded images are validated by magic bytes, stored under a content-hash name and served with `nosniff`.
+- **HTTP statuses** are named constants (`src/shared/http/status.js`); a test fails if a bare status number appears in `src`.
+
+## Iterate from here
+
+- New outcome (e.g. redirects): add a variant in `serve-page/deriveRouteOutcome.js`, a row in `STATUS_BY_OUTCOME` and a `case` in `makeLoadPage`; the `default: throw` branch and the tests flag any place you forgot.
+- New admin capability: add a new operation folder with its Deriver, controller and tests, a route in `src/admin/adminApi.js` (it is behind the session and CSRF middleware automatically), and a screen under `src/client/admin/`.
+- Not done yet: deployment (Docker, docker-compose, nginx, CD job). The CI workflow only runs the tests.
