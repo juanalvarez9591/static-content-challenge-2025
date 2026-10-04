@@ -104,3 +104,29 @@ test('admin signs in from the public site, creates a page with a pasted image, a
   await page.click('text=Sign out');
   await expect(page).toHaveURL(/\/admin\/login/);
 });
+
+test('deleting a page asks for confirmation in a modal and only deletes when confirmed', async ({ page }) => {
+  await signIn(page);
+  await page.click('text=New page');
+  await page.fill('input[name=path]', 'delete-me-e2e');
+  await page.fill('textarea[name=markdown]', '# Delete me\n');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/admin$/);
+
+  const row = page.locator('li', { hasText: '/delete-me-e2e' });
+  await row.getByRole('button', { name: 'delete' }).click();
+  const modal = page.getByRole('dialog');
+  await expect(modal).toContainText('Delete /delete-me-e2e?');
+  await modal.getByRole('button', { name: 'Cancel' }).click();
+  await expect(modal).toHaveCount(0);
+  await expect(row).toHaveCount(1);
+
+  await row.getByRole('button', { name: 'delete' }).click();
+  await page.keyboard.press('Escape');
+  await expect(modal).toHaveCount(0);
+  await expect(row).toHaveCount(1);
+
+  await row.getByRole('button', { name: 'delete' }).click();
+  await modal.getByRole('button', { name: 'Delete page' }).click();
+  await expect(row).toHaveCount(0);
+});
