@@ -58,7 +58,7 @@ npm run test:e2e          # end to end (Playwright; first run: npx playwright in
 - **Admin:** the **Admin** link in the site nav goes to `/admin/login`; after signing in you land on `/admin`, where one admin user can create, edit and delete pages. Create the user first (there is no public sign-up):
 
   ```sh
-  ADMIN_USERNAME=me ADMIN_PASSWORD='at least 12 characters' npm run create-admin
+  ADMIN_USERNAME=me ADMIN_PASSWORD='any password' npm run create-admin
   ```
 
   Page paths in the admin use lowercase letters, digits, `-` and `_`.
