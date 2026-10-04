@@ -83,7 +83,7 @@ export function Editor({ mode }) {
         <form onSubmit={onSubmit}>
           {mode === 'new'
             ? <label>Path (e.g. blog/july/news)<input name="path" value={path} onChange={(e) => setPath(e.target.value)} required /></label>
-            : <p>/{path}</p>}
+            : <p className="page-path">/{path}</p>}
           <div className="editor">
             <label>
               Markdown <small>(paste or drop images)</small>
@@ -97,8 +97,10 @@ export function Editor({ mode }) {
               <div className="preview" dangerouslySetInnerHTML={{ __html: preview }} />
             </div>
           </div>
-          <button type="submit" disabled={uploading > 0}>{uploading > 0 ? 'Uploading…' : 'Save'}</button>{' '}
-          <Link to="/admin">Cancel</Link>
+          <div className="form-actions">
+            <button type="submit" disabled={uploading > 0}>{uploading > 0 ? 'Uploading…' : 'Save'}</button>
+            <Link to="/admin">Cancel</Link>
+          </div>
         </form>
       )}
     </>

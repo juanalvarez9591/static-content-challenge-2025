@@ -17,7 +17,7 @@ test('renders a content page mobile-first with no horizontal scroll', async ({ p
   await page.goto('/hello');
   await expect(page.locator('h1')).toHaveText('Hello from the fixture');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toContain('system-ui');
+  expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toContain('Source Serif 4 Variable');
 });
 
 test('navigates between pages on the client without a full reload', async ({ page }) => {

@@ -12,7 +12,7 @@ export default defineConfig({
       output: {
         entryFileNames: 'assets/app.js',
         chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/app[extname]',
+        assetFileNames: (asset) => (asset.names.some((n) => n.endsWith('.css')) ? 'assets/app[extname]' : 'assets/[name]-[hash][extname]'),
       },
     },
   },

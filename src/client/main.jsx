@@ -1,3 +1,5 @@
+import '@fontsource-variable/archivo/wdth.css';
+import '@fontsource-variable/source-serif-4/index.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

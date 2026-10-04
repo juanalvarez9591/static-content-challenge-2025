@@ -25,15 +25,17 @@ export function AdminArea() {
     setStatus('out');
   }, []);
 
-  if (status === 'loading') return <Layout><p>Loading…</p></Layout>;
+  if (status === 'loading') return <Layout><div className="admin"><p>Loading…</p></div></Layout>;
 
   return (
     <AuthContext.Provider value={{ status, login, logout }}>
       <Layout>
-        <Routes>
-          <Route path="login" element={status === 'in' ? <Navigate to="/admin" replace /> : <Login />} />
-          <Route path="*" element={status === 'out' ? <Navigate to="/admin/login" replace /> : <AdminRoutes />} />
-        </Routes>
+        <div className="admin">
+          <Routes>
+            <Route path="login" element={status === 'in' ? <Navigate to="/admin" replace /> : <Login />} />
+            <Route path="*" element={status === 'out' ? <Navigate to="/admin/login" replace /> : <AdminRoutes />} />
+          </Routes>
+        </div>
       </Layout>
     </AuthContext.Provider>
   );

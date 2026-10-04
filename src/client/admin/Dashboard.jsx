@@ -27,19 +27,19 @@ export function Dashboard() {
     <>
       <h1>Pages</h1>
       {error && <p className="error" role="alert">{error}</p>}
-      <p><Link to="/admin/pages/new">New page</Link></p>
+      <p><Link className="button" to="/admin/pages/new">New page</Link></p>
       {pages && (
-        <ul>
+        <ul className="pages">
           {pages.map((p) => (
             <li key={p}>
-              <a href={`/${p}`}>/{p}</a>{' '}
-              <Link to={`/admin/pages/edit?path=${encodeURIComponent(p)}`}>edit</Link>{' '}
+              <a className="page-path" href={`/${p}`}>/{p}</a>
+              <Link to={`/admin/pages/edit?path=${encodeURIComponent(p)}`}>edit</Link>
               <button type="button" className="link" onClick={() => remove(p)}>delete</button>
             </li>
           ))}
         </ul>
       )}
-      <button type="button" onClick={logout}>Sign out</button>
+      <button type="button" className="secondary" onClick={logout}>Sign out</button>
     </>
   );
 }
