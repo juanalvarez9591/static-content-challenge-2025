@@ -1,0 +1,24 @@
+[Unit]
+Description=Static content app (Express + React)
+After=network.target
+
+[Service]
+User=static-content
+Group=static-content
+WorkingDirectory=/opt/static-content/current
+EnvironmentFile=/etc/static-content/env
+EnvironmentFile=-/opt/static-content/current/release.env
+ExecStart=/opt/static-content/node/bin/node --max-old-space-size=96 src/server.js
+Restart=on-failure
+RestartSec=3
+SyslogIdentifier=static-content
+MemoryHigh=150M
+MemoryMax=200M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/static-content
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,1 @@
+static-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart static-content.service, /usr/bin/systemctl is-active static-content.service
