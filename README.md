@@ -41,7 +41,7 @@ In this MVP sprint, there are several opportunities to deliver nice-to-have tick
 
 # Solution
 
-Express + client-side React app that serves every folder under `src/content` that has an `index.md` as a web page at the matching URL. Design notes and decisions live in [SPEC.md](SPEC.md).
+Express + client-side React app that serves every folder under `src/content` that has an `index.md` as a web page at the matching URL.
 
 ## Use it
 
@@ -68,7 +68,7 @@ npm run test:e2e          # end to end (Playwright; first run: npx playwright in
 
 ## How it is built
 
-Functional core, imperative shell (see SPEC.md), organised **by operation**: each operation has its own folder holding its deriver, controller and tests together; entities and their repositories have their own folders.
+Functional core, imperative shell, organised **by operation**: each operation has its own folder holding its deriver, controller and tests together; entities and their repositories have their own folders.
 
 ```
 src/
